@@ -1,0 +1,144 @@
+<Window x:Class="VlcFolderQueue.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:VlcFolderQueue"
+        mc:Ignorable="d"
+        WindowStyle="None" ResizeMode="CanResize" AllowsTransparency="False"
+        Background="#1E1E1E" Foreground="#E0E0E0"
+        Title="VLC Folder Queue" Height="600" Width="900">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Height="32" Background="{StaticResource PanelBackgroundBrush}"
+              MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
+                <TextBlock Text="VLC Folder Queue" VerticalAlignment="Center" FontSize="12"/>
+                <TextBlock x:Name="ScanStatusText" VerticalAlignment="Center" FontSize="12" Margin="16,0,0,0"
+                           Foreground="{StaticResource AccentBrush}"/>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                <Button Content="&#xE921;" FontFamily="Segoe MDL2 Assets" Width="46" Height="32" Style="{StaticResource TitleBarButtonStyle}" Click="MinimizeButton_Click"/>
+                <Button x:Name="MaximizeRestoreButton" Content="&#xE922;" FontFamily="Segoe MDL2 Assets" Width="46" Height="32" Style="{StaticResource TitleBarButtonStyle}" Click="MaximizeRestoreButton_Click"/>
+                <Button Content="&#xE8BB;" FontFamily="Segoe MDL2 Assets" Width="46" Height="32" Style="{StaticResource TitleBarCloseButtonStyle}" Click="CloseButton_Click"/>
+            </StackPanel>
+        </Grid>
+
+    <TabControl x:Name="MainTabControl" Margin="8" Grid.Row="1">
+
+        <TabItem Header="Library">
+            <Grid Margin="8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock x:Name="RootPathText" Grid.Row="0" Margin="0,0,0,8" TextWrapping="Wrap"/>
+
+                <StackPanel Orientation="Horizontal" Grid.Row="1" Margin="0,0,0,8">
+                    <Button x:Name="AddFolderButton" Content="Add Folder..." Padding="10,4" Click="AddFolderButton_Click"/>
+                    <Button x:Name="ToggleExcludeButton" Content="Toggle Excluded" Padding="10,4" Margin="8,0,0,0" Click="ToggleExcludeButton_Click"/>
+                    <Button x:Name="ToggleEpisodicButton" Content="Toggle Episodic" Padding="10,4" Margin="8,0,0,0" Click="ToggleEpisodicButton_Click"/>
+                    <Button x:Name="EditTagsButton" Content="Edit Tags..." Padding="10,4" Margin="8,0,0,0" Click="EditTagsButton_Click"/>
+                    <Button x:Name="ManageFilesButton" Content="Manage Files..." Padding="10,4" Margin="8,0,0,0" Click="ManageFilesButton_Click"/>
+                    <Button x:Name="RescanButton" Content="Rescan Library" Padding="10,4" Margin="8,0,0,0" Click="RescanButton_Click"/>
+                </StackPanel>
+
+                <DataGrid x:Name="FoldersGrid" Grid.Row="2" AutoGenerateColumns="False" IsReadOnly="True"
+                          SelectionMode="Extended" CanUserAddRows="False" MouseDoubleClick="FoldersGrid_MouseDoubleClick">
+                    <DataGrid.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="Manage Files..." Click="ManageFilesButton_Click"/>
+                            <MenuItem Header="Toggle Excluded" Click="ToggleExcludeButton_Click"/>
+                            <MenuItem Header="Toggle Episodic" Click="ToggleEpisodicButton_Click"/>
+                            <MenuItem Header="Edit Tags..." Click="EditTagsButton_Click"/>
+                        </ContextMenu>
+                    </DataGrid.ContextMenu>
+                    <DataGrid.RowStyle>
+                        <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsNew}" Value="True">
+                                    <Setter Property="Background" Value="#2A4034"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.RowStyle>
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Show/Movie Folder" Binding="{Binding Path, Mode=OneWay}" Width="3*" IsReadOnly="True"/>
+                        <DataGridCheckBoxColumn Header="Excluded" Binding="{Binding IsExcluded, Mode=OneWay}" Width="Auto" IsReadOnly="True"/>
+                        <DataGridCheckBoxColumn Header="Episodic" Binding="{Binding IsEpisodic, Mode=OneWay}" Width="Auto" IsReadOnly="True"/>
+                        <DataGridTextColumn Header="Tags" Binding="{Binding TagsDisplay, Mode=OneWay}" Width="2*" IsReadOnly="True"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+        </TabItem>
+
+        <TabItem Header="History">
+            <Grid Margin="8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <StackPanel Orientation="Horizontal" Grid.Row="0" Margin="0,0,0,8">
+                    <TextBox x:Name="HistorySearchBox" Width="250" TextChanged="HistorySearchBox_TextChanged"/>
+                    <Button x:Name="MarkUnplayedButton" Content="Mark Unplayed" Padding="10,4" Margin="8,0,0,0" Click="MarkUnplayedButton_Click"/>
+                </StackPanel>
+
+                <DataGrid x:Name="HistoryGrid" Grid.Row="1" AutoGenerateColumns="False" IsReadOnly="True"
+                          SelectionMode="Extended" CanUserAddRows="False">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="File" Binding="{Binding FilePath, Mode=OneWay}" Width="4*" IsReadOnly="True"/>
+                        <DataGridTextColumn Header="Played" Binding="{Binding PlayedUtc, Mode=OneWay}" Width="2*" IsReadOnly="True"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+        </TabItem>
+
+        <TabItem Header="Queue Builder">
+            <Grid Margin="8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <StackPanel Orientation="Horizontal" Grid.Row="0" Margin="0,0,0,8">
+                    <TextBlock Text="Target runtime (minutes):" VerticalAlignment="Center"/>
+                    <TextBox x:Name="TargetMinutesBox" Width="80" Margin="8,0,0,0" Text="120"/>
+                    <Button x:Name="GenerateQueueButton" Content="Generate Queue" Padding="10,4" Margin="16,0,0,0" Click="GenerateQueueButton_Click"/>
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Grid.Row="1" Margin="0,0,0,8">
+                    <TextBlock x:Name="EstimatedRuntimeText" Text="No queue generated yet." FontWeight="Bold" VerticalAlignment="Center"/>
+                    <CheckBox x:Name="ShowQueueToggle" Content="Show queue" Margin="16,0,0,0" VerticalAlignment="Center" Checked="ShowQueueToggle_Changed" Unchecked="ShowQueueToggle_Changed"/>
+                </StackPanel>
+
+                <DataGrid x:Name="QueueGrid" Grid.Row="2" AutoGenerateColumns="False" IsReadOnly="False"
+                          Visibility="Collapsed" CanUserAddRows="False">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="File" Binding="{Binding FilePath}" Width="4*" IsReadOnly="True"/>
+                        <DataGridTextColumn Header="Duration (min)" Binding="{Binding DurationMinutes}" Width="1*" IsReadOnly="True"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <StackPanel Orientation="Horizontal" Grid.Row="3" Margin="0,8,0,0">
+                    <Button x:Name="RemoveQueueItemButton" Content="Remove Selected" Padding="10,4" Click="RemoveQueueItemButton_Click"/>
+                    <Button x:Name="SendToVlcButton" Content="Send to VLC" Padding="10,4" Margin="8,0,0,0" Click="SendToVlcButton_Click"/>
+                </StackPanel>
+            </Grid>
+        </TabItem>
+
+    </TabControl>
+    </Grid>
+</Window>

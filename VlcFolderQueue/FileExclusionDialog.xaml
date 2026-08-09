@@ -1,0 +1,53 @@
+<Window x:Class="VlcFolderQueue.FileExclusionDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Manage Files" Height="550" Width="750" WindowStartupLocation="CenterOwner"
+        WindowStyle="None" ResizeMode="CanResize" AllowsTransparency="False"
+        Background="#1E1E1E" Foreground="#E0E0E0">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Height="30" Background="#252526" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="Manage Files" VerticalAlignment="Center" Margin="10,0,0,0" FontSize="12"/>
+            <Button Grid.Column="1" Content="&#xE8BB;" FontFamily="Segoe MDL2 Assets" Width="46" Height="30"
+                    Style="{StaticResource TitleBarCloseButtonStyle}" Click="CloseButton_Click"/>
+        </Grid>
+
+        <Grid Grid.Row="1" Margin="12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock x:Name="FolderNameText" Grid.Row="0" FontWeight="Bold" Margin="0,0,0,8" TextWrapping="Wrap"/>
+
+            <StackPanel Orientation="Horizontal" Grid.Row="1" Margin="0,0,0,8">
+                <TextBlock Text="Filter:" VerticalAlignment="Center"/>
+                <TextBox x:Name="FilterBox" Width="250" Margin="8,0,0,0" TextChanged="FilterBox_TextChanged"/>
+            </StackPanel>
+
+            <DataGrid x:Name="FilesGrid" Grid.Row="2" AutoGenerateColumns="False" CanUserAddRows="False"
+                      SelectionMode="Extended">
+                <DataGrid.Columns>
+                    <DataGridCheckBoxColumn Header="Exclude" Binding="{Binding IsExcluded, Mode=TwoWay}" Width="Auto"/>
+                    <DataGridTextColumn Header="File" Binding="{Binding RelativePath, Mode=OneWay}" Width="*" IsReadOnly="True"/>
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <StackPanel Orientation="Horizontal" Grid.Row="3" HorizontalAlignment="Right" Margin="0,8,0,0">
+                <Button Content="Exclude Selected" Padding="10,4" Click="ExcludeSelectedButton_Click"/>
+                <Button Content="Include Selected" Padding="10,4" Margin="8,0,0,0" Click="IncludeSelectedButton_Click"/>
+                <Button Content="Close" Padding="10,4" Margin="8,0,0,0" IsDefault="True" IsCancel="True"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>
