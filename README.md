@@ -1,17 +1,28 @@
 # VLC Folder Queue
 
 Windows WPF app that builds a randomized, time-boxed watch queue from a
-library of video folders and hands it to VLC as an `.m3u` playlist.
+video library and hands it to VLC as an `.m3u` playlist.
 
-- **Library tab**: add folders, exclude subfolders, mark a folder "episodic"
-  (its files queue in order as a block instead of being shuffled
-  individually), tag folders freely.
+- **Single media root**: point it at one folder (e.g. `E:\rec\TV`); it
+  auto-discovers a show/movie per immediate subfolder, collapsing any depth
+  of season subfolders into that show. Adding a different root replaces the
+  old one (its discovered shows/files go with it; play history is kept,
+  since it's keyed by file path).
+- **Library tab**: exclude a show, mark it "Episodic," tag it, or manage
+  per-file exclusions (specials/extras) via "Manage Files...". Launching the
+  app (or clicking "Rescan Library") re-scans the root and highlights any
+  newly discovered shows.
+- **Episodic**: marking a show episodic doesn't queue the whole thing as one
+  block — it makes that show contribute its *next unwatched episode* (in
+  natural season/episode order) as a single candidate in the same random
+  draw as everything else. Play it, and next time it offers the following
+  episode.
 - **History tab**: see what's already been played; mark items unplayed to
   put them back in rotation.
 - **Queue Builder tab**: enter a target runtime in minutes, generate a
-  randomized queue (episodic folders inserted as ordered blocks, everything
-  else shuffled) within ±15% of the target, review/edit it, then send it to
-  VLC.
+  randomized queue (±15% of the target) drawing from unplayed, non-excluded
+  files, review/edit it, then send it to VLC. A candidate is only added if
+  it fits within the tolerance, so one long file can't blow the budget.
 
 Library data (folders, files, tags, play history) is stored as JSON at
 `%AppData%\VlcFolderQueue\library.json`.
