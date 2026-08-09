@@ -1,4 +1,8 @@
-# VLC Folder Queue
+# Cartoon Cartoon Sundays
+
+Cartoon Cartoon Fridays was an early 2000s Cartoon Network programming block with a variety of shows. This application emulates that by randomly populating shows into a VLC playlist with user constraints for time and show selectivity.
+
+## VLC Folder Queue
 
 Windows WPF app that builds a randomized, time-boxed watch queue from a
 video library and hands it to VLC as an `.m3u` playlist.
