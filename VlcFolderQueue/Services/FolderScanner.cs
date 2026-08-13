@@ -20,12 +20,15 @@ public static class FolderScanner
     /// level above shows (e.g. TV\Genre\Show\Season) would incorrectly lump a whole genre into one
     /// group — not part of the layouts this app currently targets.
     /// Per-folder failures (permissions, missing paths on damaged/recovered drives) are swallowed so
-    /// one bad folder doesn't abort the scan.
+    /// one bad folder doesn't abort the scan. Files and discovered show/movie folders no longer found
+    /// under a root are removed from the library — but only for roots that were actually reachable
+    /// this run, so a temporarily unplugged/inaccessible root doesn't look like everything was deleted.
     /// </summary>
     public static void ScanIncludedFolders(LibraryStore store)
     {
         var now = DateTime.UtcNow;
-        var knownPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var knownFilePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var scannedRootPaths = new List<string>();
 
         foreach (var root in store.Data.Folders.Where(f => f.IsRoot && !f.IsExcluded).ToList())
         {
@@ -36,8 +39,12 @@ public static class FolderScanner
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or DirectoryNotFoundException)
             {
+                // Root unreachable this run (drive unplugged, permissions, etc.) — leave its
+                // existing files/folders alone rather than treating them as deleted.
                 continue;
             }
+
+            scannedRootPaths.Add(root.Path);
 
             foreach (var file in files)
             {
@@ -50,7 +57,7 @@ public static class FolderScanner
                 if (!string.Equals(groupPath, root.Path, StringComparison.OrdinalIgnoreCase))
                     store.GetOrAddDiscoveredFolder(groupPath);
 
-                knownPaths.Add(file);
+                knownFilePaths.Add(file);
 
                 var existing = store.Data.Files.FirstOrDefault(f => string.Equals(f.Path, file, StringComparison.OrdinalIgnoreCase));
                 if (existing == null)
@@ -70,8 +77,24 @@ public static class FolderScanner
             }
         }
 
+        // Only prune within roots that were actually reachable this run, so a temporarily
+        // unreachable root doesn't wipe out everything under it.
+        bool WasScanned(string path) => scannedRootPaths.Any(r => IsPathUnderOrEqual(r, path));
+
         // Drop files that no longer exist on disk (moved/deleted since last scan).
-        store.Data.Files.RemoveAll(f => !knownPaths.Contains(f.Path));
+        store.Data.Files.RemoveAll(f => WasScanned(f.Path) && !knownFilePaths.Contains(f.Path));
+
+        // Drop discovered show/movie folders that no longer have any files under them
+        // (the folder was deleted, renamed, or emptied on disk since the last scan).
+        var foldersWithFiles = store.Data.Files.Select(f => f.FolderPath).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        store.Data.Folders.RemoveAll(f => !f.IsRoot && WasScanned(f.Path) && !foldersWithFiles.Contains(f.Path));
+    }
+
+    private static bool IsPathUnderOrEqual(string rootPath, string path)
+    {
+        var rootFull = rootPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        return string.Equals(path, rootFull, StringComparison.OrdinalIgnoreCase) ||
+               path.StartsWith(rootFull + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string GetGroupFolder(string rootPath, string filePath)
