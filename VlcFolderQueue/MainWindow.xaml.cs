@@ -173,6 +173,18 @@ public partial class MainWindow : Window
         _store.Save();
     }
 
+    private void ManageSubfoldersButton_Click(object sender, RoutedEventArgs e)
+    {
+        var row = FoldersGrid.SelectedItem as FolderRow;
+        if (row == null) return;
+
+        var files = _store.Data.Files.Where(f => string.Equals(f.FolderPath, row.Path, StringComparison.OrdinalIgnoreCase));
+        var dialog = new SubfolderExclusionDialog(row.Path, files) { Owner = this };
+        dialog.ShowDialog();
+
+        _store.Save();
+    }
+
     private void FoldersGrid_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
     {
         if (FoldersGrid.SelectedItem is FolderRow)

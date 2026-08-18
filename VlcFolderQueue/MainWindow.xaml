@@ -50,6 +50,7 @@
                     <Button x:Name="ToggleEpisodicButton" Content="Toggle Episodic" Padding="10,4" Margin="8,0,0,0" Click="ToggleEpisodicButton_Click"/>
                     <Button x:Name="EditTagsButton" Content="Edit Tags..." Padding="10,4" Margin="8,0,0,0" Click="EditTagsButton_Click"/>
                     <Button x:Name="ManageFilesButton" Content="Manage Files..." Padding="10,4" Margin="8,0,0,0" Click="ManageFilesButton_Click"/>
+                    <Button x:Name="ManageSubfoldersButton" Content="Manage Subfolders..." Padding="10,4" Margin="8,0,0,0" Click="ManageSubfoldersButton_Click"/>
                     <Button x:Name="RescanButton" Content="Rescan Library" Padding="10,4" Margin="8,0,0,0" Click="RescanButton_Click"/>
                 </StackPanel>
 
@@ -58,6 +59,7 @@
                     <DataGrid.ContextMenu>
                         <ContextMenu>
                             <MenuItem Header="Manage Files..." Click="ManageFilesButton_Click"/>
+                            <MenuItem Header="Manage Subfolders..." Click="ManageSubfoldersButton_Click"/>
                             <MenuItem Header="Toggle Excluded" Click="ToggleExcludeButton_Click"/>
                             <MenuItem Header="Toggle Episodic" Click="ToggleEpisodicButton_Click"/>
                             <MenuItem Header="Edit Tags..." Click="EditTagsButton_Click"/>

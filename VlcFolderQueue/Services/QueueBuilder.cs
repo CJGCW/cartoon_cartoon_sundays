@@ -21,18 +21,26 @@ public static class QueueBuilder
 
     /// <summary>
     /// Builds a randomized, time-boxed queue from eligible files (unplayed, included,
-    /// non-excluded, duration known). Episodic only changes WHICH file represents a show
-    /// in the draw: instead of every episode being its own candidate, a show marked
-    /// Episodic contributes a single candidate — its earliest not-yet-played episode
-    /// (natural/numeric order) — so picking that show queues up "the next one", not a
-    /// random episode and not the whole season/series as a block. That candidate competes
-    /// in the same one-at-a-time random draw as standalone files.
-    /// Adds candidates one at a time, checking the resulting total *before* committing each
-    /// one (not just once already past the lower bound) so a single long file (a movie, a
-    /// double-length episode) can't be added if it would blow past the upper bound — it's
-    /// skipped in favor of something that still fits. Stops once the total lands within
-    /// [target*0.85, target*1.15]; if nothing more fits, returns whatever was collected
-    /// (MetLowerBound=false if that's still under the lower bound).
+    /// non-excluded, duration known). Selection is fair PER SHOW, not per file: at each draw,
+    /// every show with anything left to offer has an equal chance of being picked next,
+    /// regardless of how many files it has. Without this, a show with hundreds of files
+    /// (each its own candidate) would dominate the draw over a show with a couple dozen,
+    /// purely because it has proportionally more "tickets" in the pool.
+    /// Episodic only changes WHICH unit a show offers when it's picked: instead of a random
+    /// episode, it offers its earliest not-yet-played unit (natural/numeric order), so picking
+    /// that show queues up "the next one," not a random episode or the whole series as a block.
+    /// Multi-part episodes ("... (Part 1)" + "... (Part 2)") are always bonded into one unit,
+    /// in order, regardless of whether their show is Episodic — a Part 2 playing without its
+    /// Part 1 (or vice versa) defeats the point of a two-part story.
+    /// Checks the resulting total *before* committing each pick so a single long file (a
+    /// movie, a double-length episode) can't be added if it would blow past the upper bound
+    /// (target*1.15) — that one pick is discarded (not the whole show) and another draw is
+    /// tried. Keeps drawing until the running total reaches the actual target (not just the
+    /// lower tolerance edge, target*0.85) — otherwise a large target would stop as soon as it
+    /// barely crossed 85% of it, under-filling the queue and pulling from fewer distinct shows
+    /// than the pool could otherwise support. If every show runs out before reaching the
+    /// target, returns whatever was collected (MetLowerBound=false if that's still under the
+    /// lower bound).
     /// </summary>
     public static QueueResult Build(LibraryStore store, double targetMinutes, Random? random = null)
     {
@@ -54,35 +62,89 @@ public static class QueueBuilder
             .Select(f => f.Path)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        // One candidate per episodic show: its earliest eligible (unplayed) episode in
-        // natural order — "Season 2" before "Season 10", "E2" before "E10".
-        var episodicCandidates = eligibleFiles
-            .Where(f => episodicFolderPaths.Contains(f.FolderPath))
-            .GroupBy(f => f.FolderPath, StringComparer.OrdinalIgnoreCase)
-            .Select(g => g.OrderBy(f => f.Path, NaturalPathComparer.Instance).First());
+        // Bonded multi-part groups, keyed by any file that belongs to one, so candidate-
+        // building can look up "is this file part of a group?" in O(1).
+        var fileToPartGroup = new Dictionary<FileEntry, List<FileEntry>>();
+        foreach (var folderGroup in eligibleFiles.GroupBy(f => f.FolderPath, StringComparer.OrdinalIgnoreCase))
+            foreach (var group in PartGroupDetector.FindGroups(folderGroup))
+                foreach (var f in group)
+                    fileToPartGroup[f] = group;
 
-        var standaloneCandidates = eligibleFiles.Where(f => !episodicFolderPaths.Contains(f.FolderPath));
+        // One list of "units" (a unit = a single file, or a bonded part-group) per show.
+        var unitsByShow = new Dictionary<string, List<List<FileEntry>>>(StringComparer.OrdinalIgnoreCase);
 
-        var pool = standaloneCandidates.Concat(episodicCandidates)
-            .OrderBy(_ => random.Next())
-            .ToList();
+        // Episodic shows offer exactly one unit: their earliest eligible episode (or its
+        // bonded part-group, if it belongs to one).
+        foreach (var folderPath in episodicFolderPaths)
+        {
+            var first = eligibleFiles
+                .Where(f => string.Equals(f.FolderPath, folderPath, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(f => f.Path, NaturalPathComparer.Instance)
+                .FirstOrDefault();
+            if (first == null) continue;
+
+            var unit = fileToPartGroup.TryGetValue(first, out var group) ? group : new List<FileEntry> { first };
+            unitsByShow[folderPath] = new List<List<FileEntry>> { unit };
+        }
+
+        // Standalone shows offer every file as its own unit (bonded groups collapse to one).
+        var addedGroups = new HashSet<List<FileEntry>>();
+        foreach (var f in eligibleFiles.Where(f => !episodicFolderPaths.Contains(f.FolderPath)))
+        {
+            List<FileEntry> unit;
+            if (fileToPartGroup.TryGetValue(f, out var group))
+            {
+                if (!addedGroups.Add(group)) continue;
+                unit = group;
+            }
+            else
+            {
+                unit = new List<FileEntry> { f };
+            }
+
+            if (!unitsByShow.TryGetValue(f.FolderPath, out var list))
+                unitsByShow[f.FolderPath] = list = new List<List<FileEntry>>();
+            list.Add(unit);
+        }
+
+        // Shuffle each show's own units so, when that show's turn comes up, which specific
+        // unit it offers is randomized too — not just insertion (natural/discovery) order.
+        foreach (var list in unitsByShow.Values)
+            Shuffle(list, random);
+
+        var showsInPlay = unitsByShow.Keys.ToList();
 
         var result = new QueueResult();
         double runningTotal = 0;
 
-        foreach (var candidate in pool)
+        while (runningTotal < targetSeconds && showsInPlay.Count > 0)
         {
-            if (runningTotal >= lowerBound) break;
+            var showIndex = random.Next(showsInPlay.Count);
+            var units = unitsByShow[showsInPlay[showIndex]];
 
-            var prospectiveTotal = runningTotal + candidate.DurationSeconds!.Value;
-            if (prospectiveTotal > upperBound) continue;
+            var unit = units[^1];
+            units.RemoveAt(units.Count - 1);
+            if (units.Count == 0) showsInPlay.RemoveAt(showIndex);
 
-            result.Items.Add(new QueueItem { FilePath = candidate.Path, DurationSeconds = candidate.DurationSeconds!.Value });
+            var prospectiveTotal = runningTotal + unit.Sum(f => f.DurationSeconds!.Value);
+            if (prospectiveTotal > upperBound) continue; // this pick doesn't fit; the show stays in play if it has more
+
+            foreach (var f in unit)
+                result.Items.Add(new QueueItem { FilePath = f.Path, DurationSeconds = f.DurationSeconds!.Value });
             runningTotal = prospectiveTotal;
         }
 
         result.MetLowerBound = runningTotal >= lowerBound;
         return result;
+    }
+
+    private static void Shuffle<T>(IList<T> list, Random random)
+    {
+        for (var i = list.Count - 1; i > 0; i--)
+        {
+            var j = random.Next(i + 1);
+            (list[i], list[j]) = (list[j], list[i]);
+        }
     }
 }
 

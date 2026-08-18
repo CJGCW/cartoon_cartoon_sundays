@@ -57,8 +57,21 @@ public static class DurationProbe
             using var process = Process.Start(psi);
             if (process == null) return null;
 
-            var output = process.StandardOutput.ReadToEnd().Trim();
-            process.WaitForExit(15000);
+            // Read both streams concurrently (not just stdout) so a chatty stderr can't fill
+            // its pipe buffer and deadlock the process before it exits. Recovered/corrupted
+            // files can make ffprobe hang outright rather than fail fast, so WaitForExit's
+            // timeout has to be checked BEFORE blocking on the output — otherwise it's dead
+            // code, and one hung file stalls every file queued behind it forever.
+            var stdOutTask = process.StandardOutput.ReadToEndAsync();
+            var stdErrTask = process.StandardError.ReadToEndAsync();
+
+            if (!process.WaitForExit(15000))
+            {
+                try { process.Kill(entireProcessTree: true); } catch (InvalidOperationException) { /* already exited */ }
+                return null;
+            }
+
+            var output = stdOutTask.GetAwaiter().GetResult().Trim();
 
             if (double.TryParse(output, NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds))
                 return seconds;

@@ -50,9 +50,12 @@ public static class FolderScanner
             {
                 if (!VideoExtensions.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase))
                     continue;
-                if (store.IsUnderExcludedFolder(file))
-                    continue;
 
+                // Note: excluded files/folders are still tracked here (not skipped) — exclusion
+                // is enforced at queue-eligibility time (QueueBuilder), not at scan time. Skipping
+                // them here would make the pruning below (which drops anything not "found" this
+                // run) treat every excluded show's files as deleted and wipe them — including the
+                // exclusion flag itself once the now-empty folder got pruned too.
                 var groupPath = GetGroupFolder(root.Path, file);
                 if (!string.Equals(groupPath, root.Path, StringComparison.OrdinalIgnoreCase))
                     store.GetOrAddDiscoveredFolder(groupPath);
